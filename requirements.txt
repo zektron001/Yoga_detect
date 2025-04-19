@@ -6,3 +6,4 @@ opencv-python
 opencv-contrib-python
 gunicorn
 numpy
+mediapipe
