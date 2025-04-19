@@ -1,0 +1,56 @@
+<!-- templates/face_res.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome!</title>
+  <style>
+    body {
+      background: url("{{ url_for('static', filename='521461.jpg') }}") no-repeat center center fixed;
+      background-size: cover;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .greeting {
+      background-color: rgba(255,255,255,0.85);
+      padding: 30px 50px;
+      border-radius: 20px;
+      box-shadow: 0 0 18px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    .avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 3px solid #ccc;
+      object-fit: cover;
+      margin-bottom: 15px;
+    }
+
+    .greeting h1 {
+      font-size: 2rem;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="greeting">
+    <img class="avatar" src="{{ url_for('static', filename='avatars/' ~ user ~ '.png') }}" alt="Avatar of {{ user }}">
+    <h1>Welcome {{ user|capitalize }} 👋</h1>
+  </div>
+
+  <script>
+    setTimeout(() => {
+      window.location.href = "/choice";
+    }, 5000);
+  </script>
+</body>
+</html>
+

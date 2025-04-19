@@ -1,0 +1,229 @@
+<!-- tic_tac_toe.html with redirect to home and message -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tic Tac Toe Challenge</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      background-image: url("{{ url_for('static', filename='521461.jpg') }}");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.85);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 10px;
+      margin: 20px auto 0;
+      justify-content: center;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: white;
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 2px solid #2c3e50;
+      border-radius: 8px;
+    }
+    .info {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      color: #2c3e50;
+    }
+    .countdown {
+      font-size: 1rem;
+      color: #555;
+      margin-top: 10px;
+    }
+    .avatar-banner {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 8px 16px;
+      border-radius: 30px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+      z-index: 9999;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .avatar-banner img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #ccc;
+    }
+
+    .avatar-banner span {
+      font-weight: 600;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  {% if session.get('user') %}
+  <div class="avatar-banner">
+    <img src="{{ url_for('static', filename='avatars/' ~ session['user'] ~ '.png') }}" alt="Avatar">
+  </div>
+{% endif %}
+
+  <div class="overlay">
+    <h2>🎯 Mini Game: Tic Tac Toe</h2>
+    <p class="info">Win to complete the challenge!</p>
+    <div class="board" id="board"></div>
+    <div class="info" id="status">Current Player: X</div>
+    <div class="countdown" id="countdown"></div>
+  </div>
+
+  <script>
+    const board = document.getElementById("board");
+    const statusText = document.getElementById("status");
+    const countdownText = document.getElementById("countdown");
+    let currentPlayer = "X";
+    let gameState = Array(9).fill("");
+    const winPatterns = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    function redirectAfter(message) {
+      countdownText.textContent = message + " Redirecting in 5 seconds...";
+      let seconds = 5;
+      const interval = setInterval(() => {
+        seconds--;
+        countdownText.textContent = `${message} Redirecting in ${seconds} seconds...`;
+        if (seconds === 0) {
+          clearInterval(interval);
+          window.location.href = "/?msg=Great+play+guys!";
+        }
+      }, 1000);
+    }
+
+    function checkWinner() {
+      for (let pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+          statusText.textContent = `🎉 Player ${gameState[a]} wins!`;
+          redirectAfter("Thanks for playing, have fun :)");
+          return true;
+        }
+      }
+      if (!gameState.includes("")) {
+        statusText.textContent = "🤝 It's a draw!";
+        redirectAfter("Nice try! It's a draw.");
+        return true;
+      }
+      return false;
+    }
+
+    function handleClick(index) {
+      if (gameState[index] !== "") return;
+      gameState[index] = currentPlayer;
+      render();
+      if (!checkWinner()) {
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        statusText.textContent = `Current Player: ${currentPlayer}`;
+      }
+    }
+
+    function render() {
+      board.innerHTML = "";
+      gameState.forEach((cell, i) => {
+        const div = document.createElement("div");
+        div.className = "cell";
+        div.textContent = cell;
+        div.onclick = () => handleClick(i);
+        board.appendChild(div);
+      });
+    }
+
+    render();
+  </script>
+
+  <audio id="bg-music" loop>
+    <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
+  </audio>
+  
+  <div class="music-toggle" onclick="toggleMusic()" id="music-btn" style="
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(255,255,255,0.7);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 1000;
+  ">
+    🔈 Music On
+  </div>
+  
+  <script>
+    const music = document.getElementById("bg-music");
+    const musicBtn = document.getElementById("music-btn");
+  
+    const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
+  
+    function toggleMusic() {
+      if (music.paused) {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+          localStorage.setItem("musicOn", "true");
+        }).catch(e => console.warn("Autoplay error:", e));
+      } else {
+        music.pause();
+        musicBtn.textContent = "🔈 Music On";
+        localStorage.setItem("musicOn", "false");
+      }
+    }
+  
+    window.addEventListener("DOMContentLoaded", () => {
+      const musicPref = localStorage.getItem("musicOn");
+      music.currentTime = savedTime;
+      if (musicPref === "true") {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+        }).catch(err => {
+          document.body.addEventListener("click", () => {
+            if (localStorage.getItem("musicOn") === "true") {
+              music.play();
+              musicBtn.textContent = "🔇 Music Off";
+            }
+          }, { once: true });
+        });
+      }
+    });
+  
+    music.addEventListener("timeupdate", () => {
+      if (!music.paused) {
+        localStorage.setItem("musicTime", music.currentTime.toFixed(2));
+      }
+    });
+  </script>
+
+ </body>
+</html>

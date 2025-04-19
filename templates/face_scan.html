@@ -1,0 +1,65 @@
+<!-- templates/face_scan.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Face Scanner</title>
+  <style>
+    body {
+      background: url("{{ url_for('static', filename='521461.jpg') }}") no-repeat center center fixed;
+      background-size: cover;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .scanner-box {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.3);
+    }
+
+    #video {
+      border-radius: 12px;
+      border: 2px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="scanner-box">
+    <img id="video" src="{{ url_for('video_feed_face') }}" width="640">
+  </div>
+
+  <script>
+    function checkUser() {
+      fetch("/check_user")
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "matched") {
+            console.log("User matched:", data.user); // Debug log
+            setTimeout(() => {
+              window.location.href = "/greeting";
+            }, 1000); // Delay before redirecting to /greeting
+          } else {
+            setTimeout(checkUser, 1000); // Keep checking every 1s
+          }
+        })
+        .catch(err => {
+          console.error("Error checking user match:", err);
+          setTimeout(checkUser, 1000); // Try again on error
+        });
+    }
+  
+    window.onload = () => {
+      checkUser();
+    };
+  </script>
+  
+  
+</body>
+</html>
+

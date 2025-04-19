@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Breathing Challenge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: url("{{ url_for('static', filename='521461.jpg') }}") center center / cover no-repeat fixed;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .box {
+      background: rgba(255, 255, 255, 0.85);
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+      max-width: 460px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h2 {
+      font-size: 1.9rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    #circle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background-color: #86c5ff;
+  animation: breathe 4s ease-in-out infinite;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 0 35px rgba(69, 123, 157, 0.4);
+  transition: transform 0.3s ease-in-out;
+  margin: 40px 0;
+}
+
+    #instruction {
+  font-size: 1rem;
+  color: #333;
+  margin: 0 0 40px 0;
+  text-align: center;
+}
+
+    @keyframes breathe {
+      0% { transform: scale(1); background-color: #86c5ff; }
+      25% { background-color: #a98eff; }
+      50% { transform: scale(1.5); background-color: #8ef5e3; }
+      75% { background-color: #a98eff; }
+      100% { transform: scale(1); background-color: #86c5ff; }
+    }
+
+    @keyframes floatText {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(10px); }
+}
+  50% { transform: translateY(10px); }
+}
+  50% { transform: translateY(0); }
+}
+  50% { transform: translateY(10px); }
+}
+  50% { transform: translateY(50px); }
+}
+  50% { transform: translateY(20px); }
+}
+      50% { transform: translateY(-10px); }
+    }
+
+    .avatar-banner {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 8px 16px;
+      border-radius: 30px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+      z-index: 9999;
+    }
+
+    .avatar-banner img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #ccc;
+    }
+
+    .avatar-banner span {
+      font-weight: 600;
+      color: #333;
+    }
+
+    #feedback, #streak, #win-message {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #win-message {
+      font-size: 1.4rem;
+      color: green;
+    }
+
+    #bombalino-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+      animation: fadeIn 1s ease-in-out forwards;
+    }
+
+    #bombalino-container img {
+      width: 180px;
+      margin-bottom: 15px;
+    }
+
+    #bombalino-container p {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #245b55;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .music-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255,255,255,0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+
+  <div class="box">
+    <h2>Hit the Breath!</h2>
+    <p id="instruction">Tap the circle when it’s fully expanded</p>
+    <div id="circle"></div>
+    <div id="feedback"></div>
+    <div id="streak">🔥 Streak: 0</div>
+    <div id="win-message"></div>
+    <div id="bombalino-container">
+      <img src="{{ url_for('static', filename='poses/bombardino.jpg') }}" alt="Bombalino">
+      <p>Bombalino Crocodilo says... You are precious 💚</p>
+    </div>
+    <audio id="bg-music" loop>
+      <source src="{{ url_for('static', filename='audio/jazz.wav') }}" type="audio/wav">
+    </audio>
+    <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
+  </div>
+
+  <script>
+    const circle = document.getElementById("circle");
+    const feedback = document.getElementById("feedback");
+    const streakDisplay = document.getElementById("streak");
+    const winMessage = document.getElementById("win-message");
+    const bombalino = document.getElementById("bombalino-container");
+
+    let lastPulseTime = Date.now();
+    const cycleDuration = 4000;
+    let streak = 0;
+    const maxStreak = 2;
+    let gameWon = false;
+
+    setInterval(() => {
+      lastPulseTime = Date.now();
+      setTimeout(() => {
+        circle.classList.remove("hidden");
+      }, 500);
+    }, cycleDuration);
+
+    circle.addEventListener("click", () => {
+      if (gameWon) return;
+      const now = Date.now();
+      const offset = (now - lastPulseTime) % cycleDuration;
+      const diff = Math.min(offset, cycleDuration - offset);
+
+      if (diff < 300) {
+        feedback.textContent = "🎯 Perfect!";
+        streak++;
+      } else if (diff < 600) {
+        feedback.textContent = "🙂 Good!";
+        streak++;
+      } else {
+        feedback.textContent = "❌ Missed it!";
+        streak = 0;
+      }
+
+      streakDisplay.textContent = "🔥 Streak: " + streak;
+
+      if (streak >= maxStreak) {
+        winMessage.textContent = "🏆 You Win!";
+        gameWon = true;
+        setTimeout(() => {
+          bombalino.style.display = "flex";
+          speakAffirmation();
+        }, 600);
+
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 7000);
+      }
+    });
+
+    function speakAffirmation() {
+      const msg = new SpeechSynthesisUtterance("Bombalino Crocodilo says... You are precious");
+      msg.pitch = 1.3;
+      msg.rate = 1.1;
+      speechSynthesis.speak(msg);
+    }
+
+    const music = document.getElementById("bg-music");
+    const musicBtn = document.getElementById("music-btn");
+    const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
+
+    function toggleMusic() {
+      if (music.paused) {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+          localStorage.setItem("musicOn", "true");
+        }).catch(e => console.warn("Autoplay error:", e));
+      } else {
+        music.pause();
+        musicBtn.textContent = "🔈 Music On";
+        localStorage.setItem("musicOn", "false");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const musicPref = localStorage.getItem("musicOn");
+      music.currentTime = savedTime;
+      if (musicPref === "true") {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+        }).catch(() => {
+          document.body.addEventListener("click", () => {
+            if (localStorage.getItem("musicOn") === "true") {
+              music.play();
+              musicBtn.textContent = "🔇 Music Off";
+            }
+          }, { once: true });
+        });
+      }
+    });
+
+    music.addEventListener("timeupdate", () => {
+      if (!music.paused) {
+        localStorage.setItem("musicTime", music.currentTime.toFixed(2));
+      }
+    });
+  </script>
+</body>
+</html>
