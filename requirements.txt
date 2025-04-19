@@ -1,0 +1,8 @@
+Flask
+face_recognition
+cmake
+dlib
+opencv-python
+mediapipe
+numpy
+gunicorn
