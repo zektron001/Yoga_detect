@@ -1,4 +1,3 @@
-<!-- templates/face_scan.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,45 +20,71 @@
       padding: 20px;
       border-radius: 15px;
       box-shadow: 0 0 12px rgba(0,0,0,0.3);
+      text-align: center;
     }
 
-    #video {
+    video {
       border-radius: 12px;
       border: 2px solid #333;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      background-color: #3e63dd;
+      color: white;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div class="scanner-box">
-    <img id="video" src="{{ url_for('video_feed_face') }}" width="640">
+    <video id="video" autoplay playsinline width="640" height="480"></video>
+    <br>
+    <button id="scan-btn">Scan Face</button>
   </div>
 
   <script>
-    function checkUser() {
-      fetch("/check_user")
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === "matched") {
-            console.log("User matched:", data.user); // Debug log
-            setTimeout(() => {
-              window.location.href = "/greeting";
-            }, 1000); // Delay before redirecting to /greeting
-          } else {
-            setTimeout(checkUser, 1000); // Keep checking every 1s
-          }
-        })
-        .catch(err => {
-          console.error("Error checking user match:", err);
-          setTimeout(checkUser, 1000); // Try again on error
-        });
-    }
-  
-    window.onload = () => {
-      checkUser();
-    };
+    const video = document.getElementById('video');
+    const scanBtn = document.getElementById('scan-btn');
+
+    // Ask for camera permission
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        alert('Camera access denied or not available.');
+        console.error(err);
+      });
+
+    scanBtn.addEventListener('click', () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const base64Image = canvas.toDataURL('image/jpeg');
+
+      fetch('/api/face-recognition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(`Welcome, ${data.user}`);
+          window.location.href = '/greeting';
+        } else {
+          alert('Face not recognized');
+        }
+      });
+    });
   </script>
-  
-  
 </body>
 </html>
 

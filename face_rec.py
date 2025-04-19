@@ -10,15 +10,16 @@ known_dir = os.path.join(BASE_DIR, 'known_faces')
 known_encodings = []
 known_names = []
 
-# Load known faces
+# Load known faces (1 image per person)
 for filename in os.listdir(known_dir):
-    if filename.lower().endswith(('.jpg', '.png')):
+    if filename.lower().endswith(('.jpg', '.png', '.jpeg')):
         path = os.path.join(known_dir, filename)
         image = face_recognition.load_image_file(path)
         encodings = face_recognition.face_encodings(image)
         if encodings:
             known_encodings.append(encodings[0])
-            known_names.append(os.path.splitext(filename)[0].lower())
+            name = os.path.splitext(filename)[0].lower()
+            known_names.append(name)
 
 last_matched_user = None
 
@@ -39,16 +40,23 @@ def generate_face_frames():
 
         if not matched:
             for face_encoding in face_encodings:
-                matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.5)
+                tolerance = 0.38  # super strict
+                matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=tolerance)
                 face_distances = face_recognition.face_distance(known_encodings, face_encoding)
                 best_match_index = np.argmin(face_distances)
+
+                print("Distances:", face_distances)  # Debug
+                print("Best:", known_names[best_match_index], "| Distance:", face_distances[best_match_index])  # Debug
+
                 if matches[best_match_index]:
                     last_matched_user = known_names[best_match_index]
                     matched = True
                     match_time = time.time()
+                    print(f"✅ Matched: {last_matched_user} (distance: {face_distances[best_match_index]:.4f})")
                     break
+                else:
+                    print("❌ No confident match found")
 
-        # Keep showing live feed for 3 seconds after match
         if matched and time.time() - match_time > 3:
             break
 
