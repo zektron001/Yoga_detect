@@ -33,7 +33,7 @@
       border: 2px solid #ccc;
     }
 
-    video {
+    #video-stream {
       width: 720px;
       max-width: 100%;
       border-radius: 20px;
@@ -110,7 +110,7 @@
     <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-    <img id="video" src="{{ url_for('video_feed') }}" width="720" style="border-radius: 20px; border: 3px solid #888; box-shadow: 0 0 30px rgba(0,0,0,0.3);">
+    <img id="video-stream" src="{{ url_for('video_feed') }}">
 
     <div id="result">📸 Waiting for pose feedback...</div>
     <div class="info-box">
@@ -168,4 +168,5 @@
   </script>
 </body>
 </html>
+
 
