@@ -14,13 +14,13 @@ current_score = 0
 # Define poses and their expected joint angles
 POSE_ANGLES = {
     "Mountain Pose": {
-        "left_arm": (150, 210),   # was too strict before
+        "left_arm": (150, 210),
         "right_arm": (150, 210),
         "left_leg": (160, 200),
         "right_leg": (160, 200)
     },
     "Tree Pose": {
-        "left_leg": (30, 110),   # wider range for balance
+        "left_leg": (30, 110),
         "right_leg": (150, 200),
         "left_arm": (130, 210),
         "right_arm": (130, 210)
@@ -32,7 +32,6 @@ POSE_ANGLES = {
         "left_leg": (150, 195)
     }
 }
-
 
 # Reusable angle calculator
 def calculate_angle(a, b, c):
@@ -92,7 +91,13 @@ def generate_frames(target_pose="Mountain Pose"):
             label = "No Pose"
             angles = {}
             if results.pose_landmarks:
-                mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+                mp_drawing.draw_landmarks(
+                    image,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                    mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=4),
+                    mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
+                )
                 landmarks = results.pose_landmarks.landmark
                 label, angles = classify_pose(landmarks)
 
@@ -135,6 +140,7 @@ def detect_pose_from_image(base64_image, target_pose="Mountain Pose"):
     frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     mp_pose = mp.solutions.pose
+    mp_drawing = mp.solutions.drawing_utils
     expected = POSE_ANGLES.get(target_pose, {})
 
     with mp_pose.Pose(static_image_mode=True) as pose:
@@ -143,6 +149,14 @@ def detect_pose_from_image(base64_image, target_pose="Mountain Pose"):
             return {"matched": False, "pose": "Unknown"}
 
         landmarks = results.pose_landmarks.landmark
+
+        annotated = frame.copy()
+        mp_drawing.draw_landmarks(
+            annotated, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+            mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=4),
+            mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2, circle_radius=2)
+        )
+
         angles = {
             "left_arm": calculate_angle(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
                                         landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
