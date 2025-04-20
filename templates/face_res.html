@@ -42,7 +42,8 @@
 </head>
 <body>
   <div class="greeting">
-    <img class="avatar" src="{{ url_for('static', filename='static/avatars/' ~ user ~ '.png') }}" alt="Avatar of {{ user }}">
+    <!-- ✅ Fixed the path and added |lower -->
+    <img class="avatar" src="{{ url_for('static', filename='avatars/' ~ user|lower ~ '.png') }}" alt="Avatar of {{ user }}">
     <h1>Welcome {{ user|capitalize }} 👋</h1>
   </div>
 
@@ -53,4 +54,5 @@
   </script>
 </body>
 </html>
+
 
