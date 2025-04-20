@@ -1,4 +1,3 @@
-<!-- templates/detector_live.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -98,7 +97,6 @@
     }
   </style>
 </head>
-
 <body>
   {% if session.get('user') %}
   <div class="avatar-banner">
@@ -112,8 +110,7 @@
     <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-    <video id="webcam" autoplay playsinline muted></video>
-    <canvas id="snapshot" width="640" height="480" style="display: none;"></canvas>
+    <img id="video" src="{{ url_for('video_feed') }}" width="720" style="border-radius: 20px; border: 3px solid #888; box-shadow: 0 0 30px rgba(0,0,0,0.3);">
 
     <div id="result">📸 Waiting for pose feedback...</div>
     <div class="info-box">
@@ -129,48 +126,6 @@
   <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
 
   <script>
-    const video = document.getElementById("webcam");
-    const canvas = document.getElementById("snapshot");
-    const resultBox = document.getElementById("result");
-    const context = canvas.getContext("2d");
-
-    let poseMatchedFrames = 0;
-    const requiredHoldFrames = 3;
-
-    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-      video.srcObject = stream;
-    });
-
-    function sendFrame() {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataURL = canvas.toDataURL("image/jpeg");
-
-      fetch("/pose_predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: dataURL })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.matched) {
-          poseMatchedFrames++;
-          resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
-
-          if (poseMatchedFrames >= requiredHoldFrames) {
-            resultBox.innerText = `🎯 Pose Matched! Redirecting...`;
-            setTimeout(() => {
-              window.location.href = "/result";
-            }, 1200);
-          }
-        } else {
-          poseMatchedFrames = 0;
-          resultBox.innerText = `❌ Not matched`;
-        }
-      });
-    }
-
-    setInterval(sendFrame, 1500);
-
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
     const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
@@ -213,5 +168,4 @@
   </script>
 </body>
 </html>
-
 
