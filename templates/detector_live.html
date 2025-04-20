@@ -158,6 +158,11 @@
           }, { once: true });
         });
       }
+
+      // Automatically redirect to result page after 10 seconds
+      setTimeout(() => {
+        window.location.href = "/result";
+      }, 10000);
     });
 
     music.addEventListener("timeupdate", () => {
@@ -168,5 +173,3 @@
   </script>
 </body>
 </html>
-
-
