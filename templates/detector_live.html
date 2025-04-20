@@ -102,6 +102,22 @@
       cursor: pointer;
       z-index: 1000;
     }
+
+    .manual-redirect {
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #bbb;
+    }
+
+    .manual-redirect button {
+      background-color: rgba(255, 255, 255, 0.15);
+      border: 1px solid #ccc;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      color: #eee;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -126,6 +142,11 @@
     <div class="info-box">
       <p>💡 Make sure your whole body is visible in the webcam view.</p>
       <p>⏳ Hold the pose correctly for a few seconds to score!</p>
+    </div>
+
+    <!-- Manual fallback -->
+    <div class="manual-redirect">
+      <p>Having trouble? <button onclick="window.location.replace('/result')">Go to Result Manually</button></p>
     </div>
   </div>
 
@@ -156,7 +177,7 @@
         redirectTriggered = true;
         resultBox.innerText = `➡️ Redirecting...`;
         setTimeout(() => {
-          window.location.href = "/result";
+          window.location.replace("/result");
         }, 800);
       }
     }
@@ -241,3 +262,4 @@
   </script>
 </body>
 </html>
+
