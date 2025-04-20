@@ -50,6 +50,13 @@
       text-shadow: 0 0 6px rgba(0,0,0,0.4);
     }
 
+    #timer {
+      font-size: 1.2rem;
+      margin-top: 10px;
+      color: #ffe57f;
+      font-weight: bold;
+    }
+
     .info-box {
       margin-top: 18px;
       font-size: 1.15rem;
@@ -114,6 +121,8 @@
     <canvas id="snapshot" width="640" height="480" style="display:none;"></canvas>
 
     <div id="result">📸 Waiting for pose feedback...</div>
+    <div id="timer">⏳ Time Left: <span id="countdown">10</span>s</div>
+
     <div class="info-box">
       <p>💡 Make sure your whole body is visible in the webcam view.</p>
       <p>⏳ Hold the pose correctly for a few seconds to score!</p>
@@ -131,9 +140,11 @@
     const canvas = document.getElementById("snapshot");
     const context = canvas.getContext("2d");
     const resultBox = document.getElementById("result");
+    const countdownEl = document.getElementById("countdown");
+
     let poseMatchedFrames = 0;
     const requiredHoldFrames = 2;
-    let timeElapsed = 0;
+    let countdown = 10;
 
     navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
       webcam.srcObject = stream;
@@ -164,21 +175,19 @@
       });
     }
 
-    const countdownDuration = 10;
-    const countdownInterval = setInterval(() => {
-      timeElapsed++;
-      if (timeElapsed >= countdownDuration) {
-        clearInterval(countdownInterval);
-        fetch("/pose_predict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: canvas.toDataURL("image/jpeg") })
-        });
-        window.location.href = "/result";
+    setInterval(sendFrame, 1500);
+
+    const timer = setInterval(() => {
+      countdown--;
+      countdownEl.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(timer);
+        resultBox.innerText = `⏰ Time's up! Redirecting...`;
+        setTimeout(() => {
+          window.location.href = "/result";
+        }, 1000);
       }
     }, 1000);
-
-    setInterval(sendFrame, 1500);
 
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
