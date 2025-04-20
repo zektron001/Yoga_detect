@@ -14,24 +14,25 @@ current_score = 0
 # Define poses and their expected joint angles
 POSE_ANGLES = {
     "Mountain Pose": {
-        "left_arm": (160, 200),
-        "right_arm": (160, 200),
-        "left_leg": (170, 190),
-        "right_leg": (170, 190)
+        "left_arm": (150, 210),   # was too strict before
+        "right_arm": (150, 210),
+        "left_leg": (160, 200),
+        "right_leg": (160, 200)
     },
     "Tree Pose": {
-        "left_leg": (40, 100),
-        "right_leg": (160, 190),
-        "left_arm": (140, 200),
-        "right_arm": (140, 200)
+        "left_leg": (30, 110),   # wider range for balance
+        "right_leg": (150, 200),
+        "left_arm": (130, 210),
+        "right_arm": (130, 210)
     },
     "Warrior Pose": {
-        "left_arm": (165, 185),
-        "right_arm": (165, 185),
-        "right_leg": (80, 130),
-        "left_leg": (160, 190)
+        "left_arm": (150, 195),
+        "right_arm": (150, 195),
+        "right_leg": (70, 140),
+        "left_leg": (150, 195)
     }
 }
+
 
 # Reusable angle calculator
 def calculate_angle(a, b, c):
