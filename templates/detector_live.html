@@ -33,7 +33,7 @@
       border: 2px solid #ccc;
     }
 
-    #video-stream {
+    video {
       width: 720px;
       max-width: 100%;
       border-radius: 20px;
@@ -110,7 +110,8 @@
     <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-    <img id="video-stream" src="{{ url_for('video_feed') }}">
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="snapshot" width="640" height="480" style="display:none;"></canvas>
 
     <div id="result">📸 Waiting for pose feedback...</div>
     <div class="info-box">
@@ -126,6 +127,59 @@
   <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
 
   <script>
+    const webcam = document.getElementById("webcam");
+    const canvas = document.getElementById("snapshot");
+    const context = canvas.getContext("2d");
+    const resultBox = document.getElementById("result");
+    let poseMatchedFrames = 0;
+    const requiredHoldFrames = 2;
+    let timeElapsed = 0;
+
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      webcam.srcObject = stream;
+    });
+
+    function sendFrame() {
+      context.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+      const dataURL = canvas.toDataURL("image/jpeg");
+
+      fetch("/pose_predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataURL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.matched) {
+          poseMatchedFrames++;
+          resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
+          if (poseMatchedFrames >= requiredHoldFrames) {
+            resultBox.innerText = `🎯 Pose Matched! Redirecting...`;
+            setTimeout(() => window.location.href = "/result", 1200);
+          }
+        } else {
+          poseMatchedFrames = 0;
+          resultBox.innerText = `❌ Not matched`;
+        }
+      });
+    }
+
+    const countdownDuration = 10;
+    const countdownInterval = setInterval(() => {
+      timeElapsed++;
+      if (timeElapsed >= countdownDuration) {
+        clearInterval(countdownInterval);
+        fetch("/pose_predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: canvas.toDataURL("image/jpeg") })
+        });
+        window.location.href = "/result";
+      }
+    }, 1000);
+
+    setInterval(sendFrame, 1500);
+
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
     const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
@@ -158,11 +212,6 @@
           }, { once: true });
         });
       }
-
-      // Automatically redirect to result page after 10 seconds
-      setTimeout(() => {
-        window.location.href = "/result";
-      }, 10000);
     });
 
     music.addEventListener("timeupdate", () => {
