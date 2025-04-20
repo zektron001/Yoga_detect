@@ -13,10 +13,10 @@
       background-size: cover;
       font-family: 'Segoe UI', sans-serif;
     }
-  
+
     .overlay {
       backdrop-filter: blur(20px);
-      background-color: rgba(255, 255, 255, 0.1); /* transparent white */
+      background-color: rgba(255, 255, 255, 0.1);
       padding: 30px;
       border-radius: 25px;
       max-width: 880px;
@@ -25,15 +25,15 @@
       box-shadow: 0 0 25px rgba(0, 0, 0, 0.25);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
-  
+
     .pose-img {
       width: 200px;
       border-radius: 12px;
       margin-bottom: 10px;
       border: 2px solid #ccc;
     }
-  
-    #video-feed {
+
+    video {
       width: 720px;
       max-width: 100%;
       border-radius: 15px;
@@ -41,13 +41,22 @@
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
       margin-top: 20px;
     }
-  
+
+    #result {
+      font-size: 1.2rem;
+      margin-top: 12px;
+      color: #fff;
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(0,0,0,0.4);
+    }
+
     .info-box {
       margin-top: 15px;
       font-size: 1.1rem;
       color: #fefefe;
       text-shadow: 0 0 5px rgba(0,0,0,0.4);
     }
+
     .avatar-banner {
       position: fixed;
       top: 20px;
@@ -60,8 +69,8 @@
       border-radius: 30px;
       box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
       z-index: 9999;
-      font-family: 'Segoe UI', sans-serif;
     }
+
     .avatar-banner img {
       width: 40px;
       height: 40px;
@@ -74,66 +83,90 @@
       font-weight: 600;
       color: #333;
     }
-  </style>
-  
 
-  <script>
-    setInterval(() => {
-      fetch('/check_trigger')
-        .then(res => res.json())
-        .then(data => {
-          if (data.status === "done") {
-            window.location.href = "/result";
-          }
-        });
-    }, 1000); // check every second
-  </script>
+    .music-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255,255,255,0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+  </style>
 </head>
 
 <body>
   {% if session.get('user') %}
   <div class="avatar-banner">
     <img src="{{ url_for('static', filename='avatars/' ~ session['user'] ~ '.png') }}" alt="Avatar">
+    <span>{{ session['user'] }}</span>
   </div>
-{% endif %}
+  {% endif %}
+
   <div class="overlay">
     <h2 class="mb-3">🧘 Extrovert Mode – Hold the Target Pose!</h2>
 
     <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-    <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Live Feed">
-    
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="snapshot" width="640" height="480" style="display: none;"></canvas>
+
+    <div id="result">Waiting for feedback...</div>
+
     <div class="info-box">
       <p>Make sure your full body is visible on screen.</p>
       <p>Hold the pose for a few seconds to earn points!</p>
     </div>
   </div>
+
   <audio id="bg-music" loop>
     <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
   </audio>
-  
-  <div class="music-toggle" onclick="toggleMusic()" id="music-btn" style="
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    background: rgba(255,255,255,0.7);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    z-index: 1000;
-  ">
-    🔈 Music On
-  </div>
-  
+
+  <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
+
   <script>
+    const video = document.getElementById("webcam");
+    const canvas = document.getElementById("snapshot");
+    const resultBox = document.getElementById("result");
+    const context = canvas.getContext("2d");
+
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      video.srcObject = stream;
+    });
+
+    function sendFrame() {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataURL = canvas.toDataURL("image/jpeg");
+
+      fetch("/pose_predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataURL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.matched) {
+          resultBox.innerText = `✅ Matched: ${data.pose}`;
+          setTimeout(() => {
+            window.location.href = "/result";
+          }, 1000);
+        } else {
+          resultBox.innerText = `❌ Not matched`;
+        }
+      });
+    }
+
+    setInterval(sendFrame, 1000);
+
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
-  
-    // Load time from localStorage
     const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
-  
+
     function toggleMusic() {
       if (music.paused) {
         music.play().then(() => {
@@ -146,13 +179,10 @@
         localStorage.setItem("musicOn", "false");
       }
     }
-  
+
     window.addEventListener("DOMContentLoaded", () => {
       const musicPref = localStorage.getItem("musicOn");
-  
-      // Set playback time immediately
       music.currentTime = savedTime;
-  
       if (musicPref === "true") {
         music.play().then(() => {
           musicBtn.textContent = "🔇 Music Off";
@@ -166,15 +196,14 @@
         });
       }
     });
-  
-    // Save position more smoothly on every time update
+
     music.addEventListener("timeupdate", () => {
       if (!music.paused) {
         localStorage.setItem("musicTime", music.currentTime.toFixed(2));
       }
     });
   </script>
-
 </body>
 </html>
+
 

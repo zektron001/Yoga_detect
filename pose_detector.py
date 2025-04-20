@@ -2,11 +2,16 @@ import os
 import cv2
 import mediapipe as mp
 import numpy as np
+from PIL import Image
+from io import BytesIO
+import base64
 
+# Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TRIGGER_PATH = os.path.join(BASE_DIR, "static", "trigger_result.txt")
 current_score = 0
 
+# Define poses and their expected joint angles
 POSE_ANGLES = {
     "Mountain Pose": {
         "left_arm": (160, 200),
@@ -15,40 +20,40 @@ POSE_ANGLES = {
         "right_leg": (170, 190)
     },
     "Tree Pose": {
-        "left_leg": (40, 100),   # lifted leg
-        "right_leg": (160, 190), # standing leg
+        "left_leg": (40, 100),
+        "right_leg": (160, 190),
         "left_arm": (140, 200),
         "right_arm": (140, 200)
     },
     "Warrior Pose": {
-    "left_arm": (165, 185),
-    "right_arm": (165, 185),
-    "right_leg": (80, 130),    # now this is bent
-    "left_leg": (160, 190)     # now this is straight
+        "left_arm": (165, 185),
+        "right_arm": (165, 185),
+        "right_leg": (80, 130),
+        "left_leg": (160, 190)
+    }
 }
 
+# Reusable angle calculator
+def calculate_angle(a, b, c):
+    a = np.array([a.x, a.y])
+    b = np.array([b.x, b.y])
+    c = np.array([c.x, c.y])
+    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
+    angle = np.abs(radians * 180.0 / np.pi)
+    return 360 - angle if angle > 180 else angle
 
-}
-
+# 🎥 Webcam-based local detection
 def generate_frames(target_pose="Mountain Pose"):
     global current_score
     pose_hold_frames = 0
-    required_frames = 15  # adjust to 30 for stricter matching
+    required_frames = 15
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        raise IOError("❌ Cannot access webcam. Please check camera permission.")
+        raise IOError("❌ Cannot access webcam. Please check camera permissions.")
 
     mp_pose = mp.solutions.pose
     mp_drawing = mp.solutions.drawing_utils
-
-    def calculate_angle(a, b, c):
-        a = np.array([a.x, a.y])
-        b = np.array([b.x, b.y])
-        c = np.array([c.x, c.y])
-        radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
-        angle = np.abs(radians * 180.0 / np.pi)
-        return 360 - angle if angle > 180 else angle
 
     def classify_pose(landmarks):
         angles = {
@@ -63,17 +68,12 @@ def generate_frames(target_pose="Mountain Pose"):
                                         landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value]),
             "right_leg": calculate_angle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
                                          landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
-                                         landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value]),
+                                         landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
         }
 
         for pose_name, expected_angles in POSE_ANGLES.items():
-            match = True
-            for joint, (min_angle, max_angle) in expected_angles.items():
-                angle = angles.get(joint, None)
-                if angle is None or not (min_angle <= angle <= max_angle):
-                    match = False
-                    break
-            if match:
+            if all(min_a <= angles.get(joint, 0) <= max_a
+                   for joint, (min_a, max_a) in expected_angles.items()):
                 return pose_name, angles
         return "Unknown", angles
 
@@ -95,20 +95,17 @@ def generate_frames(target_pose="Mountain Pose"):
                 landmarks = results.pose_landmarks.landmark
                 label, angles = classify_pose(landmarks)
 
-            # Display pose and target
             cv2.putText(image, f'Target: {target_pose}', (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
             cv2.putText(image, f'Pose: {label}', (10, 60),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-            # Show angles
             y_offset = 90
             for part, angle in angles.items():
                 cv2.putText(image, f'{part}: {int(angle)}', (10, y_offset),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 y_offset += 20
 
-            # Pose holding logic with visual countdown
             if label == target_pose:
                 pose_hold_frames += 1
             else:
@@ -130,7 +127,44 @@ def generate_frames(target_pose="Mountain Pose"):
 
     cap.release()
 
+# 🧠 Image-based pose classification (for Railway / browser uploads)
+def detect_pose_from_image(base64_image, target_pose="Mountain Pose"):
+    img_data = base64_image.split(',')[1]
+    image = Image.open(BytesIO(base64.b64decode(img_data))).convert('RGB')
+    frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+    mp_pose = mp.solutions.pose
+    expected = POSE_ANGLES.get(target_pose, {})
+
+    with mp_pose.Pose(static_image_mode=True) as pose:
+        results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if not results.pose_landmarks:
+            return {"matched": False, "pose": "Unknown"}
+
+        landmarks = results.pose_landmarks.landmark
+        angles = {
+            "left_arm": calculate_angle(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                        landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                                        landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]),
+            "right_arm": calculate_angle(landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
+                                         landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value],
+                                         landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]),
+            "left_leg": calculate_angle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                        landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                        landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value]),
+            "right_leg": calculate_angle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                                         landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
+                                         landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
+        }
+
+        for joint, (min_a, max_a) in expected.items():
+            angle = angles.get(joint, 0)
+            if not (min_a <= angle <= max_a):
+                return {"matched": False, "pose": target_pose}
+
+        return {"matched": True, "pose": target_pose}
+
+# For result retrieval
 def get_score():
     global current_score
     return current_score
-

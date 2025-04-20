@@ -1,5 +1,7 @@
 from flask import Flask, render_template, Response, redirect, url_for, jsonify, session, request
-from pose_detector import generate_frames, get_score, TRIGGER_PATH
+from pose_detector import generate_frames, get_score, TRIGGER_PATH, detect_pose_from_image
+from face_rec import get_last_recognized_user, generate_face_frames
+import face_recognition
 import random
 import os
 import base64
@@ -7,14 +9,12 @@ import re
 from io import BytesIO
 from PIL import Image
 import numpy as np
-import face_recognition
-from face_rec import get_last_recognized_user, generate_face_frames
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key'
 current_score = 0
 
-# Load known faces once globally
+# Load known faces
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 known_dir = os.path.join(BASE_DIR, 'known_faces')
 known_encodings = []
@@ -29,12 +29,14 @@ for filename in os.listdir(known_dir):
             known_encodings.append(encodings[0])
             known_names.append(os.path.splitext(filename)[0].lower())
 
+# Pose definitions
 POSES = [
     {"name": "Mountain Pose", "img": "poses/mountain.png"},
     {"name": "Tree Pose", "img": "poses/Tree_pose.png"},
     {"name": "Warrior Pose", "img": "poses/Warrior_pose.png"}
 ]
 
+# Routes
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -60,7 +62,6 @@ def api_face_recognition():
             idx = matches.index(True)
             session['user'] = known_names[idx]
             return jsonify(success=True, user=known_names[idx])
-
     return jsonify(success=False)
 
 @app.route('/check_user')
@@ -122,6 +123,19 @@ def check_trigger():
     except FileNotFoundError:
         pass
     return jsonify({"status": "waiting"})
+
+@app.route('/pose_predict', methods=['POST'])
+def pose_predict():
+    data = request.get_json()
+    base64_image = data['image']
+    pose_name = session.get('target_pose', 'Mountain Pose')
+    result = detect_pose_from_image(base64_image, pose_name)
+
+    if result["matched"]:
+        with open(TRIGGER_PATH, "w") as f:
+            f.write("done")
+
+    return jsonify(result)
 
 @app.route('/result')
 def result():
