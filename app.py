@@ -29,16 +29,17 @@ for filename in os.listdir(known_dir):
             known_encodings.append(encodings[0])
             known_names.append(os.path.splitext(filename)[0].lower())
 
-# Pose definitions
+# Pose options
 POSES = [
     {"name": "Mountain Pose", "img": "poses/mountain.png"},
     {"name": "Tree Pose", "img": "poses/Tree_pose.png"},
     {"name": "Warrior Pose", "img": "poses/Warrior_pose.png"}
 ]
 
-# Routes
 @app.route('/')
 def home():
+    global current_score
+    current_score = 0
     return render_template('index.html')
 
 @app.route('/face-scan')
@@ -49,29 +50,29 @@ def face_scan():
 @app.route('/api/face-recognition', methods=['POST'])
 def api_face_recognition():
     data = request.get_json()
-    img_data = re.sub('^data:image/.+;base64,', '', data['image'])
-    image = Image.open(BytesIO(base64.b64decode(img_data)))
-    rgb = np.array(image.convert('RGB'))
+    img_data = re.sub('^data:image/.+;base64,', '', data.get('image', ''))
+    try:
+        image = Image.open(BytesIO(base64.b64decode(img_data)))
+        rgb = np.array(image.convert('RGB'))
 
-    face_locations = face_recognition.face_locations(rgb)
-    face_encodings = face_recognition.face_encodings(rgb, face_locations)
+        face_locations = face_recognition.face_locations(rgb)
+        face_encodings = face_recognition.face_encodings(rgb, face_locations)
 
-    for face_encoding in face_encodings:
-        matches = face_recognition.compare_faces(known_encodings, face_encoding)
-        if True in matches:
-            idx = matches.index(True)
-            session['user'] = known_names[idx]
-            return jsonify(success=True, user=known_names[idx])
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(known_encodings, face_encoding)
+            if True in matches:
+                idx = matches.index(True)
+                session['user'] = known_names[idx]
+                return jsonify(success=True, user=known_names[idx])
+    except Exception as e:
+        print(f"[ERROR] Face recognition failed: {e}")
     return jsonify(success=False)
 
 @app.route('/check_user')
 def check_user():
-    user = session.get('user')
-    if not user:
-        user = get_last_recognized_user()
-        if user:
-            session['user'] = user
+    user = session.get('user') or get_last_recognized_user()
     if user:
+        session['user'] = user
         return jsonify({"status": "matched", "user": user})
     return jsonify({"status": "waiting"})
 
@@ -84,6 +85,8 @@ def greeting():
 
 @app.route('/choice')
 def choice():
+    global current_score
+    current_score = 0
     return render_template('choice.html')
 
 @app.route('/breathing')
@@ -105,6 +108,23 @@ def live_detector():
     session['pose_img'] = chosen_pose["img"]
     return render_template('detector_live.html', pose_name=chosen_pose["name"], pose_img=chosen_pose["img"])
 
+@app.route('/pose_predict', methods=['POST'])
+def pose_predict():
+    data = request.get_json()
+    base64_image = data.get('image')
+    if not base64_image:
+        return jsonify({"matched": False, "pose": "Unknown", "error": "No image received"})
+
+    pose_name = session.get('target_pose', 'Mountain Pose')
+    result = detect_pose_from_image(base64_image, pose_name)
+
+    print(f"[POSE RESULT] Target: {pose_name}, Matched: {result['matched']}")
+    if result["matched"]:
+        with open(TRIGGER_PATH, "w") as f:
+            f.write("done")
+
+    return jsonify(result)
+
 @app.route('/video_feed')
 def video_feed():
     pose_name = session.get('target_pose', 'Mountain Pose')
@@ -123,19 +143,6 @@ def check_trigger():
     except FileNotFoundError:
         pass
     return jsonify({"status": "waiting"})
-
-@app.route('/pose_predict', methods=['POST'])
-def pose_predict():
-    data = request.get_json()
-    base64_image = data['image']
-    pose_name = session.get('target_pose', 'Mountain Pose')
-    result = detect_pose_from_image(base64_image, pose_name)
-
-    if result["matched"]:
-        with open(TRIGGER_PATH, "w") as f:
-            f.write("done")
-
-    return jsonify(result)
 
 @app.route('/result')
 def result():

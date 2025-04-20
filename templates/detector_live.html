@@ -1,3 +1,4 @@
+<!-- templates/detector_live.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,44 +16,44 @@
     }
 
     .overlay {
-      backdrop-filter: blur(20px);
+      backdrop-filter: blur(25px);
       background-color: rgba(255, 255, 255, 0.1);
-      padding: 30px;
+      padding: 40px;
       border-radius: 25px;
       max-width: 880px;
       margin: 40px auto;
       text-align: center;
-      box-shadow: 0 0 25px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.35);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
     .pose-img {
-      width: 200px;
-      border-radius: 12px;
-      margin-bottom: 10px;
+      width: 220px;
+      border-radius: 15px;
+      margin-bottom: 12px;
       border: 2px solid #ccc;
     }
 
     video {
       width: 720px;
       max-width: 100%;
-      border-radius: 15px;
+      border-radius: 20px;
       border: 3px solid #888;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
-      margin-top: 20px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+      margin-top: 25px;
     }
 
     #result {
-      font-size: 1.2rem;
-      margin-top: 12px;
+      font-size: 1.3rem;
+      margin-top: 15px;
       color: #fff;
       font-weight: bold;
-      text-shadow: 0 0 5px rgba(0,0,0,0.4);
+      text-shadow: 0 0 6px rgba(0,0,0,0.4);
     }
 
     .info-box {
-      margin-top: 15px;
-      font-size: 1.1rem;
+      margin-top: 18px;
+      font-size: 1.15rem;
       color: #fefefe;
       text-shadow: 0 0 5px rgba(0,0,0,0.4);
     }
@@ -108,18 +109,16 @@
 
   <div class="overlay">
     <h2 class="mb-3">🧘 Extrovert Mode – Hold the Target Pose!</h2>
-
     <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
     <video id="webcam" autoplay playsinline muted></video>
     <canvas id="snapshot" width="640" height="480" style="display: none;"></canvas>
 
-    <div id="result">Waiting for feedback...</div>
-
+    <div id="result">📸 Waiting for pose feedback...</div>
     <div class="info-box">
-      <p>Make sure your full body is visible on screen.</p>
-      <p>Hold the pose for a few seconds to earn points!</p>
+      <p>💡 Make sure your whole body is visible in the webcam view.</p>
+      <p>⏳ Hold the pose correctly for a few seconds to score!</p>
     </div>
   </div>
 
@@ -134,6 +133,9 @@
     const canvas = document.getElementById("snapshot");
     const resultBox = document.getElementById("result");
     const context = canvas.getContext("2d");
+
+    let poseMatchedFrames = 0;
+    const requiredHoldFrames = 3;
 
     navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
       video.srcObject = stream;
@@ -151,17 +153,23 @@
       .then(res => res.json())
       .then(data => {
         if (data.matched) {
-          resultBox.innerText = `✅ Matched: ${data.pose}`;
-          setTimeout(() => {
-            window.location.href = "/result";
-          }, 1000);
+          poseMatchedFrames++;
+          resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
+
+          if (poseMatchedFrames >= requiredHoldFrames) {
+            resultBox.innerText = `🎯 Pose Matched! Redirecting...`;
+            setTimeout(() => {
+              window.location.href = "/result";
+            }, 1200);
+          }
         } else {
+          poseMatchedFrames = 0;
           resultBox.innerText = `❌ Not matched`;
         }
       });
     }
 
-    setInterval(sendFrame, 1000);
+    setInterval(sendFrame, 1500);
 
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
