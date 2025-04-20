@@ -145,12 +145,24 @@
     let poseMatchedFrames = 0;
     const requiredHoldFrames = 2;
     let countdown = 10;
+    let redirectTriggered = false;
 
     navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
       webcam.srcObject = stream;
     });
 
+    function redirectToResult() {
+      if (!redirectTriggered) {
+        redirectTriggered = true;
+        resultBox.innerText = `➡️ Redirecting...`;
+        setTimeout(() => {
+          window.location.href = "/result";
+        }, 800);
+      }
+    }
+
     function sendFrame() {
+      if (redirectTriggered) return;
       context.drawImage(webcam, 0, 0, canvas.width, canvas.height);
       const dataURL = canvas.toDataURL("image/jpeg");
 
@@ -166,7 +178,7 @@
           resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
           if (poseMatchedFrames >= requiredHoldFrames) {
             resultBox.innerText = `🎯 Pose Matched! Redirecting...`;
-            setTimeout(() => window.location.href = "/result", 1200);
+            redirectToResult();
           }
         } else {
           poseMatchedFrames = 0;
@@ -180,12 +192,10 @@
     const timer = setInterval(() => {
       countdown--;
       countdownEl.textContent = countdown;
-      if (countdown <= 0) {
+      if (countdown <= 0 && !redirectTriggered) {
         clearInterval(timer);
         resultBox.innerText = `⏰ Time's up! Redirecting...`;
-        setTimeout(() => {
-          window.location.href = "/result";
-        }, 1000);
+        redirectToResult();
       }
     }, 1000);
 
@@ -212,7 +222,7 @@
       if (musicPref === "true") {
         music.play().then(() => {
           musicBtn.textContent = "🔇 Music Off";
-        }).catch(err => {
+        }).catch(() => {
           document.body.addEventListener("click", () => {
             if (localStorage.getItem("musicOn") === "true") {
               music.play();
