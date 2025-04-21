@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, jsonify, session, request, Response
 from face_rec import get_last_recognized_user, generate_face_frames
+from pose_detector import detect_pose_from_image
 import face_recognition
 import random
 import os
@@ -99,8 +100,19 @@ def live_detector():
     chosen_pose = random.choice(POSES)
     session['target_pose'] = chosen_pose["name"]
     session['pose_img'] = chosen_pose["img"]
-    session['score'] = 1  # Static score for now; frontend match triggers redirect
+    session['score'] = 1  # Placeholder
     return render_template('detector_live.html', pose_name=chosen_pose["name"], pose_img=chosen_pose["img"])
+
+@app.route('/pose_predict', methods=['POST'])
+def pose_predict():
+    data = request.get_json()
+    base64_image = data.get('image')
+    if not base64_image:
+        return jsonify({"matched": False, "pose": "Unknown", "error": "No image received"})
+
+    pose_name = session.get('target_pose', 'Mountain Pose')
+    result = detect_pose_from_image(base64_image, pose_name)
+    return jsonify(result)
 
 @app.route('/loading')
 def loading():
@@ -125,3 +137,4 @@ def joke_game():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
