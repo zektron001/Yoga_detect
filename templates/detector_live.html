@@ -14,7 +14,7 @@
       font-family: 'Segoe UI', sans-serif;
     }
 
-    .overlay, .result-card {
+    .overlay {
       backdrop-filter: blur(25px);
       background-color: rgba(255, 255, 255, 0.1);
       padding: 40px;
@@ -102,188 +102,138 @@
       cursor: pointer;
       z-index: 1000;
     }
-
-    .result-card {
-      display: none;
-      background: rgba(255, 255, 255, 0.9);
-      text-align: center;
-      max-width: 600px;
-    }
-
-    .result-card img {
-      width: 300px;
-      border-radius: 15px;
-      margin: 20px auto;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    }
-
-    .btn-custom {
-      padding: 10px 25px;
-      font-size: 1rem;
-      background-color: #337aff;
-      color: white;
-      border-radius: 10px;
-      text-decoration: none;
-      box-shadow: 0 4px 12px rgba(51, 122, 255, 0.4);
-    }
-
-    .btn-custom:hover {
-      background-color: #1f5fde;
-    }
   </style>
 </head>
 <body>
-
-{% if session.get('user') %}
+  {% if session.get('user') %}
   <div class="avatar-banner">
     <img src="{{ url_for('static', filename='avatars/' ~ session['user'] ~ '.png') }}" alt="Avatar">
     <span>{{ session['user'] }}</span>
   </div>
-{% endif %}
+  {% endif %}
 
-<div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
+  <div class="overlay">
+    <h2 class="mb-3">🧘 Extrovert Mode – Hold the Target Pose!</h2>
+    <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
+    <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-<!-- ✅ POSE CHALLENGE -->
-<div class="overlay" id="pose-challenge">
-  <h2 class="mb-3">🧘 Extrovert Mode – Hold the Target Pose!</h2>
-  <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
-  <div class="text-muted mb-3">Try to match this pose ☝️</div>
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="snapshot" width="640" height="480" style="display:none;"></canvas>
 
-  <video id="webcam" autoplay playsinline muted></video>
-  <canvas id="snapshot" width="640" height="480" style="display:none;"></canvas>
+    <div id="result">📸 Waiting for pose feedback...</div>
+    <div id="timer">⏳ Time Left: <span id="countdown">10</span>s</div>
 
-  <div id="result">📸 Waiting for pose feedback...</div>
-  <div id="timer">⏳ Time Left: <span id="countdown">10</span>s</div>
-
-  <div class="info-box">
-    <p>💡 Make sure your whole body is visible in the webcam view.</p>
-    <p>⏳ Hold the pose correctly for a few seconds to score!</p>
+    <div class="info-box">
+      <p>💡 Make sure your whole body is visible in the webcam view.</p>
+      <p>⏳ Hold the pose correctly for a few seconds to score!</p>
+    </div>
   </div>
-</div>
 
-<!-- ✅ RESULT CARD -->
-<div class="result-card" id="result-card">
-  <h1>🎉 Great Job!</h1>
-  <img src="{{ url_for('static', filename='poses/sahur.jpg') }}" alt="Tung Tung Tung Sahur">
-  <p>You got <strong>1</strong> point from <strong>Tung Tung Tung Sahur</strong>!</p>
-  <a class="btn-custom" href="{{ url_for('home') }}">Back to Home</a>
-</div>
+  <audio id="bg-music" loop>
+    <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
+  </audio>
 
-<audio id="bg-music" loop>
-  <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
-</audio>
+  <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
 
-<script>
-  const webcam = document.getElementById("webcam");
-  const canvas = document.getElementById("snapshot");
-  const context = canvas.getContext("2d");
-  const resultBox = document.getElementById("result");
-  const countdownEl = document.getElementById("countdown");
+  <script>
+    const webcam = document.getElementById("webcam");
+    const canvas = document.getElementById("snapshot");
+    const context = canvas.getContext("2d");
+    const resultBox = document.getElementById("result");
+    const countdownEl = document.getElementById("countdown");
 
-  let poseMatchedFrames = 0;
-  const requiredHoldFrames = 2;
-  let countdown = 10;
-  let redirectTriggered = false;
+    let poseMatchedFrames = 0;
+    const requiredHoldFrames = 2;
+    let countdown = 10;
+    let redirectTriggered = false;
 
-  // Start webcam
-  navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-    webcam.srcObject = stream;
-  });
-
-  // Show final result
-  function showResultCard() {
-    // stop camera
-    if (webcam.srcObject) {
-      webcam.srcObject.getTracks().forEach(track => track.stop());
-    }
-
-    clearInterval(timer);
-    clearInterval(frameInterval);
-
-    document.getElementById("pose-challenge").style.display = "none";
-    document.getElementById("result-card").style.display = "block";
-  }
-
-  // Send webcam image for prediction
-  function sendFrame() {
-    if (redirectTriggered) return;
-    context.drawImage(webcam, 0, 0, canvas.width, canvas.height);
-    const dataURL = canvas.toDataURL("image/jpeg");
-
-    fetch("/pose_predict", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: dataURL })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.matched) {
-        poseMatchedFrames++;
-        resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
-        if (poseMatchedFrames >= requiredHoldFrames) {
-          redirectTriggered = true;
-          showResultCard();
-        }
-      } else {
-        poseMatchedFrames = 0;
-        resultBox.innerText = `❌ Not matched`;
-      }
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      webcam.srcObject = stream;
     });
-  }
 
-  const frameInterval = setInterval(sendFrame, 1000);
-
-  const timer = setInterval(() => {
-    countdown--;
-    countdownEl.textContent = countdown;
-    if (countdown <= 0 && !redirectTriggered) {
-      redirectTriggered = true;
-      resultBox.innerText = `⏰ Time's up!`;
-      showResultCard();
+    function redirectToResult() {
+      if (!redirectTriggered) {
+        redirectTriggered = true;
+        window.location.href = "/result";
+      }
     }
-  }, 1000);
 
-  // 🎵 Music controls
-  const music = document.getElementById("bg-music");
-  const musicBtn = document.getElementById("music-btn");
-  const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
+    function sendFrame() {
+      if (redirectTriggered) return;
+      context.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+      const dataURL = canvas.toDataURL("image/jpeg");
 
-  function toggleMusic() {
-    if (music.paused) {
-      music.play().then(() => {
-        musicBtn.textContent = "🔇 Music Off";
-        localStorage.setItem("musicOn", "true");
-      }).catch(e => console.warn("Autoplay error:", e));
-    } else {
-      music.pause();
-      musicBtn.textContent = "🔈 Music On";
-      localStorage.setItem("musicOn", "false");
-    }
-  }
-
-  window.addEventListener("DOMContentLoaded", () => {
-    const musicPref = localStorage.getItem("musicOn");
-    music.currentTime = savedTime;
-    if (musicPref === "true") {
-      music.play().then(() => {
-        musicBtn.textContent = "🔇 Music Off";
-      }).catch(() => {
-        document.body.addEventListener("click", () => {
-          if (localStorage.getItem("musicOn") === "true") {
-            music.play();
-            musicBtn.textContent = "🔇 Music Off";
+      fetch("/pose_predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataURL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.matched) {
+          poseMatchedFrames++;
+          resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
+          if (poseMatchedFrames >= requiredHoldFrames) {
+            redirectToResult();
           }
-        }, { once: true });
+        } else {
+          poseMatchedFrames = 0;
+          resultBox.innerText = `❌ Not matched`;
+        }
       });
     }
-  });
 
-  music.addEventListener("timeupdate", () => {
-    if (!music.paused) {
-      localStorage.setItem("musicTime", music.currentTime.toFixed(2));
+    setInterval(sendFrame, 1000);
+
+    const timer = setInterval(() => {
+      countdown--;
+      countdownEl.textContent = countdown;
+      if (countdown <= 0 && !redirectTriggered) {
+        clearInterval(timer);
+        resultBox.innerText = `⏰ Time's up! Redirecting...`;
+        redirectToResult();
+      }
+    }, 1000);
+
+    const music = document.getElementById("bg-music");
+    const musicBtn = document.getElementById("music-btn");
+    const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
+
+    function toggleMusic() {
+      if (music.paused) {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+          localStorage.setItem("musicOn", "true");
+        }).catch(e => console.warn("Autoplay error:", e));
+      } else {
+        music.pause();
+        musicBtn.textContent = "🔈 Music On";
+        localStorage.setItem("musicOn", "false");
+      }
     }
-  });
-</script>
 
+    window.addEventListener("DOMContentLoaded", () => {
+      const musicPref = localStorage.getItem("musicOn");
+      music.currentTime = savedTime;
+      if (musicPref === "true") {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+        }).catch(() => {
+          document.body.addEventListener("click", () => {
+            if (localStorage.getItem("musicOn") === "true") {
+              music.play();
+              musicBtn.textContent = "🔇 Music Off";
+            }
+          }, { once: true });
+        });
+      }
+    });
+
+    music.addEventListener("timeupdate", () => {
+      if (!music.paused) {
+        localStorage.setItem("musicTime", music.currentTime.toFixed(2));
+      }
+    });
+  </script>
 </body>
 </html>
