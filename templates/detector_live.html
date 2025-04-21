@@ -154,10 +154,7 @@
     function redirectToResult() {
       if (!redirectTriggered) {
         redirectTriggered = true;
-        resultBox.innerText = `➡️ Redirecting...`;
-        setTimeout(() => {
-          window.location.href = "/result";
-        }, 800);
+        window.location.href = "/result";
       }
     }
 
@@ -177,7 +174,6 @@
           poseMatchedFrames++;
           resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
           if (poseMatchedFrames >= requiredHoldFrames) {
-            resultBox.innerText = `🎯 Pose Matched! Redirecting...`;
             redirectToResult();
           }
         } else {
@@ -187,7 +183,7 @@
       });
     }
 
-    setInterval(sendFrame, 1500);
+    setInterval(sendFrame, 1000);
 
     const timer = setInterval(() => {
       countdown--;
@@ -241,4 +237,3 @@
   </script>
 </body>
 </html>
-
