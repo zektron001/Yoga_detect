@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <title>Pose Challenge – Match the Pose</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
-  <link rel="prefetch" href="/result">
   <style>
     html, body {
       height: 100%;
@@ -30,7 +26,16 @@
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
-    #output {
+    .pose-img {
+      width: 220px;
+      border-radius: 15px;
+      margin-bottom: 12px;
+      border: 2px solid #ccc;
+    }
+
+    video {
+      width: 720px;
+      max-width: 100%;
       border-radius: 20px;
       border: 3px solid #888;
       box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
@@ -47,9 +52,9 @@
 
     #timer {
       font-size: 1.2rem;
+      margin-top: 10px;
       color: #ffe57f;
       font-weight: bold;
-      margin-top: 10px;
     }
 
     .info-box {
@@ -58,15 +63,62 @@
       color: #fefefe;
       text-shadow: 0 0 5px rgba(0,0,0,0.4);
     }
+
+    .avatar-banner {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 8px 16px;
+      border-radius: 30px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+      z-index: 9999;
+    }
+
+    .avatar-banner img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #ccc;
+    }
+
+    .avatar-banner span {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .music-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255,255,255,0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
+  {% if session.get('user') %}
+  <div class="avatar-banner">
+    <img src="{{ url_for('static', filename='avatars/' ~ session['user'] ~ '.png') }}" alt="Avatar">
+    <span>{{ session['user'] }}</span>
+  </div>
+  {% endif %}
+
   <div class="overlay">
     <h2 class="mb-3">🧘 Extrovert Mode – Hold the Target Pose!</h2>
-    <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img" style="width:220px; border-radius: 15px; margin-bottom: 12px; border: 2px solid #ccc;">
+    <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-    <canvas id="output" width="640" height="480"></canvas>
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="snapshot" width="640" height="480" style="display:none;"></canvas>
 
     <div id="result">📸 Waiting for pose feedback...</div>
     <div id="timer">⏳ Time Left: <span id="countdown">10</span>s</div>
@@ -77,105 +129,116 @@
     </div>
   </div>
 
+  <audio id="bg-music" loop>
+    <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
+  </audio>
+
+  <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
+
   <script>
-    const canvas = document.getElementById('output');
-    const ctx = canvas.getContext('2d');
-    const resultBox = document.getElementById('result');
-    const countdownEl = document.getElementById('countdown');
+    const webcam = document.getElementById("webcam");
+    const canvas = document.getElementById("snapshot");
+    const context = canvas.getContext("2d");
+    const resultBox = document.getElementById("result");
+    const countdownEl = document.getElementById("countdown");
 
-    let videoStream;
-    let video = document.createElement('video');
-    video.style.display = 'none';
-    document.body.appendChild(video);
-
-    let matchFrames = 0;
-    const holdThreshold = 5;
-    let matched = false;
+    let poseMatchedFrames = 0;
+    const requiredHoldFrames = 2;
     let countdown = 10;
-    let timer = null;
+    let redirectTriggered = false;
 
-    const pose = new Pose.Pose({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      webcam.srcObject = stream;
     });
 
-    pose.setOptions({
-      modelComplexity: 0,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
+    function redirectToResult() {
+      if (!redirectTriggered) {
+        redirectTriggered = true;
+        resultBox.innerText = `➡️ Redirecting...`;
+        setTimeout(() => {
+          window.location.href = "/result";
+        }, 800);
+      }
+    }
 
-    pose.onResults(res => {
-      if (matched) return;
-      ctx.save();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(res.image, 0, 0, canvas.width, canvas.height);
+    function sendFrame() {
+      if (redirectTriggered) return;
+      context.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+      const dataURL = canvas.toDataURL("image/jpeg");
 
-      if (res.poseLandmarks) {
-        drawConnectors(ctx, res.poseLandmarks, Pose.POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-        drawLandmarks(ctx, res.poseLandmarks, {color: '#FF0000', lineWidth: 2});
-
-        const [lw, rw, ls, rs] = [15, 16, 11, 12].map(i => res.poseLandmarks[i]);
-
-        if (lw.y < ls.y && rw.y < rs.y) {
-          matchFrames++;
-          resultBox.innerText = `✅ Holding pose (${matchFrames}/${holdThreshold})`;
+      fetch("/pose_predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataURL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.matched) {
+          poseMatchedFrames++;
+          resultBox.innerText = `✅ Holding ${data.pose} (${poseMatchedFrames}/${requiredHoldFrames})`;
+          if (poseMatchedFrames >= requiredHoldFrames) {
+            resultBox.innerText = `🎯 Pose Matched! Redirecting...`;
+            redirectToResult();
+          }
         } else {
-          matchFrames = 0;
-          resultBox.innerText = `❌ Pose not matched`;
+          poseMatchedFrames = 0;
+          resultBox.innerText = `❌ Not matched`;
         }
-
-        if (matchFrames >= holdThreshold && !matched) {
-          matched = true;
-          goToLoading();
-        }
-      }
-      ctx.restore();
-    });
-
-    async function startCamera() {
-      try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = videoStream;
-        await video.play();
-
-        const camera = new Camera(video, {
-          onFrame: async () => {
-            await pose.send({image: video});
-          },
-          width: 640,
-          height: 480
-        });
-
-        camera.start();
-      } catch (err) {
-        alert("Camera failed to start: " + err);
-        resultBox.innerText = "🚫 Unable to access camera. Please allow webcam access and refresh the page.";
-      }
+      });
     }
 
-    function goToLoading() {
-      clearInterval(timer);
-      document.body.innerHTML = `
-        <div style="color:white;text-align:center;padding-top:100px;font-size:24px;">
-          🎯 Pose Matched!<br><br>Loading your result...
-          <div class="spinner-border text-light" role="status" style="margin-top: 20px;"></div>
-        </div>`;
-      setTimeout(() => window.location.replace("/loading"), 500);
-    }
+    setInterval(sendFrame, 1500);
 
-    timer = setInterval(() => {
+    const timer = setInterval(() => {
       countdown--;
       countdownEl.textContent = countdown;
-      if (countdown <= 0 && !matched) {
+      if (countdown <= 0 && !redirectTriggered) {
         clearInterval(timer);
         resultBox.innerText = `⏰ Time's up! Redirecting...`;
-        goToLoading();
+        redirectToResult();
       }
     }, 1000);
 
-    window.addEventListener('DOMContentLoaded', startCamera);
+    const music = document.getElementById("bg-music");
+    const musicBtn = document.getElementById("music-btn");
+    const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
+
+    function toggleMusic() {
+      if (music.paused) {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+          localStorage.setItem("musicOn", "true");
+        }).catch(e => console.warn("Autoplay error:", e));
+      } else {
+        music.pause();
+        musicBtn.textContent = "🔈 Music On";
+        localStorage.setItem("musicOn", "false");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const musicPref = localStorage.getItem("musicOn");
+      music.currentTime = savedTime;
+      if (musicPref === "true") {
+        music.play().then(() => {
+          musicBtn.textContent = "🔇 Music Off";
+        }).catch(() => {
+          document.body.addEventListener("click", () => {
+            if (localStorage.getItem("musicOn") === "true") {
+              music.play();
+              musicBtn.textContent = "🔇 Music Off";
+            }
+          }, { once: true });
+        });
+      }
+    });
+
+    music.addEventListener("timeupdate", () => {
+      if (!music.paused) {
+        localStorage.setItem("musicTime", music.currentTime.toFixed(2));
+      }
+    });
   </script>
 </body>
 </html>
+

@@ -1,6 +1,6 @@
-from flask import Flask, render_template, redirect, url_for, jsonify, session, request, Response
+from flask import Flask, render_template, Response, redirect, url_for, jsonify, session, request
+from pose_detector import generate_frames, get_score, TRIGGER_PATH, detect_pose_from_image
 from face_rec import get_last_recognized_user, generate_face_frames
-from pose_detector import detect_pose_from_image
 import face_recognition
 import random
 import os
@@ -12,6 +12,7 @@ import numpy as np
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key'
+current_score = 0
 
 # Load known faces
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,7 +38,8 @@ POSES = [
 
 @app.route('/')
 def home():
-    session.clear()
+    global current_score
+    current_score = 0
     return render_template('index.html')
 
 @app.route('/face-scan')
@@ -83,6 +85,8 @@ def greeting():
 
 @app.route('/choice')
 def choice():
+    global current_score
+    current_score = 0
     return render_template('choice.html')
 
 @app.route('/breathing')
@@ -97,10 +101,11 @@ def breathing():
 
 @app.route('/live-detector')
 def live_detector():
+    with open(TRIGGER_PATH, "w") as f:
+        f.write("")
     chosen_pose = random.choice(POSES)
     session['target_pose'] = chosen_pose["name"]
     session['pose_img'] = chosen_pose["img"]
-    session['score'] = 1  # Placeholder
     return render_template('detector_live.html', pose_name=chosen_pose["name"], pose_img=chosen_pose["img"])
 
 @app.route('/pose_predict', methods=['POST'])
@@ -112,20 +117,40 @@ def pose_predict():
 
     pose_name = session.get('target_pose', 'Mountain Pose')
     result = detect_pose_from_image(base64_image, pose_name)
+
+    print(f"[POSE RESULT] Target: {pose_name}, Matched: {result['matched']}")
+    if result["matched"]:
+        with open(TRIGGER_PATH, "w") as f:
+            f.write("done")
+
     return jsonify(result)
 
-@app.route('/loading')
-def loading():
-    return render_template('loading_result.html')
-
-@app.route('/result')
-def result():
-    score = session.get('score', 0)
-    return render_template('detector_game_result.html', score=score)
+@app.route('/video_feed')
+def video_feed():
+    pose_name = session.get('target_pose', 'Mountain Pose')
+    return Response(generate_frames(pose_name), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/video_feed_face')
 def video_feed_face():
     return Response(generate_face_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/check_trigger')
+def check_trigger():
+    try:
+        with open(TRIGGER_PATH, "r") as f:
+            if "done" in f.read():
+                return jsonify({"status": "done"})
+    except FileNotFoundError:
+        pass
+    return jsonify({"status": "waiting"})
+
+@app.route('/result')
+def result():
+    global current_score
+    current_score = get_score()
+    with open(TRIGGER_PATH, "w") as f:
+        f.write("")
+    return render_template('detector_game_result.html', score=current_score)
 
 @app.route('/tic-tac-toe')
 def tic_tac_toe():
@@ -137,4 +162,3 @@ def joke_game():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
