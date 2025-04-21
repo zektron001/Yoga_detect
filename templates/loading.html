@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Loading...</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <h2>Loading your score...</h2>
+  <div class="spinner-border text-light" role="status" style="margin-top: 20px;"></div>
+  <script>
+    setTimeout(() => {
+      window.location.replace("/result");
+    }, 1000); // simulate processing delay
+  </script>
+</body>
+</html>
