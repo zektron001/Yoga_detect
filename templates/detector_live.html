@@ -66,7 +66,7 @@
     <img src="{{ url_for('static', filename=pose_img) }}" alt="Target Pose" class="pose-img" style="width:220px; border-radius: 15px; margin-bottom: 12px; border: 2px solid #ccc;">
     <div class="text-muted mb-3">Try to match this pose ☝️</div>
 
-    <video id="webcam" autoplay playsinline muted style="display:none;"></video>
+    <video id="webcam" autoplay playsinline muted width="640" height="480"></video>
     <canvas id="output" width="640" height="480"></canvas>
 
     <div id="result">📸 Waiting for pose feedback...</div>
@@ -138,7 +138,11 @@
       width: 640,
       height: 480
     });
-    camera.start();
+
+    camera.start().catch(err => {
+      alert("Camera failed to start: " + err);
+      resultBox.innerText = "🚫 Unable to access camera. Please allow webcam access and refresh the page.";
+    });
 
     function goToLoading() {
       clearInterval(timer);
