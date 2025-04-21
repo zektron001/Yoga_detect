@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, jsonify, session, request
+from flask import Flask, render_template, redirect, url_for, jsonify, session, request, Response
 from face_rec import get_last_recognized_user, generate_face_frames
 import face_recognition
 import random
@@ -99,7 +99,7 @@ def live_detector():
     chosen_pose = random.choice(POSES)
     session['target_pose'] = chosen_pose["name"]
     session['pose_img'] = chosen_pose["img"]
-    session['score'] = 1  # Set simple static score; update logic as needed
+    session['score'] = 1  # Static score for now; frontend match triggers redirect
     return render_template('detector_live.html', pose_name=chosen_pose["name"], pose_img=chosen_pose["img"])
 
 @app.route('/loading')
