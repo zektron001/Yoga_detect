@@ -15,6 +15,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      flex-direction: column;
     }
 
     .card {
@@ -25,6 +26,7 @@
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
       text-align: center;
       max-width: 500px;
+      margin-bottom: 20px;
     }
 
     .card h1 {
@@ -72,6 +74,7 @@
       cursor: pointer;
       z-index: 1000;
     }
+
     .avatar-banner {
       position: fixed;
       top: 20px;
@@ -86,6 +89,7 @@
       z-index: 9999;
       font-family: 'Segoe UI', sans-serif;
     }
+
     .avatar-banner img {
       width: 40px;
       height: 40px;
@@ -101,11 +105,42 @@
   </style>
 </head>
 <body>
+
   {% if session.get('user') %}
   <div class="avatar-banner">
     <img src="{{ url_for('static', filename='avatars/' ~ session['user'] ~ '.png') }}" alt="Avatar">
+    <span>{{ session['user'] }}</span>
   </div>
-{% endif %}
+  {% endif %}
+
+  <div class="music-toggle" onclick="toggleMusic()" id="music-btn">🔈 Music On</div>
+
+  <!-- ✅ Result Card -->
+  <div class="card" id="result-card">
+    <h1>🎉 Great Job!</h1>
+    <div style="display: flex; justify-content: center;">
+      <img src="{{ url_for('static', filename='poses/sahur.jpg') }}" alt="Tung Tung Tung Sahur" style="width: 300px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); margin-bottom: 20px;">
+    </div>
+    <p>You got <strong>{{ score }}</strong> point{{ 's' if score > 1 else '' }} from <strong>Tung Tung Tung Sahur</strong>!</p>
+  </div>
+
+  <!-- ✅ Leaderboard Card (hidden at first) -->
+  <div class="card" id="leaderboard-card" style="display: none;">
+    <h1>🏆 Leaderboard</h1>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">Jeremy — 9 points</li>
+      <li class="list-group-item">Yi Zhong — 7 points</li>
+      <li class="list-group-item">{{ session['user'] }} — {{ score }} point{{ 's' if score > 1 else '' }}</li>
+    </ul>
+    <p class="mt-3">Redirecting to home...</p>
+  </div>
+
+  <!-- ✅ Background Music -->
+  <audio id="bg-music" loop>
+    <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
+  </audio>
+
+  <!-- ✅ Script: Voice, leaderboard transition, redirect -->
   <script>
     window.addEventListener("DOMContentLoaded", () => {
       const score = {{ score }};
@@ -113,53 +148,37 @@
       const msg = new SpeechSynthesisUtterance(text);
       msg.rate = 1.25;
       msg.pitch = 5;
-  
-      // Wait until voices are loaded
+
       const speak = () => {
         const voices = speechSynthesis.getVoices();
-        // Try to get a natural English or Indonesian voice
         const preferred = voices.find(v =>
           v.lang.startsWith("en-GB") || v.lang.startsWith("en-US") || v.lang.startsWith("id")
         );
         msg.voice = preferred || voices[0];
-        window.speechSynthesis.speak(msg);
+        speechSynthesis.speak(msg);
       };
-  
-      // Ensure voices are loaded
+
       if (speechSynthesis.getVoices().length === 0) {
         speechSynthesis.onvoiceschanged = speak;
       } else {
         speak();
       }
+
+      // Show leaderboard after 5s
+      setTimeout(() => {
+        document.getElementById("result-card").style.display = "none";
+        document.getElementById("leaderboard-card").style.display = "block";
+      }, 5000);
+
+      // Redirect to home after 10s
+      setTimeout(() => {
+        window.location.href = "{{ url_for('home') }}";
+      }, 10000);
     });
-  </script>
-  
-  
-  <div class="card">
-    <h1>🎉 Great Job!</h1>
 
-<div style="display: flex; justify-content: center;">
-  <img src="{{ url_for('static', filename='poses/sahur.jpg') }}" alt="Tung Tung Tung Sahur" style="width: 300px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); margin-bottom: 20px;">
-</div>
-
-<p>You got <strong>{{ score }}</strong> point{{ 's' if score > 1 else '' }} from <strong>Tung Tung Tung Sahur</strong>!</p>
-
-<a class="btn-custom" href="{{ url_for('home') }}">Back to Home</a>
-
-
-  <!-- Music & Toggle -->
-  <audio id="bg-music" loop>
-    <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
-  </audio>
-
-  <div class="music-toggle" onclick="toggleMusic()" id="music-btn">
-    🔈 Music On
-  </div>
-
-  <script>
+    // ✅ Music logic
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
-
     const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
 
     function toggleMusic() {
@@ -178,11 +197,10 @@
     window.addEventListener("DOMContentLoaded", () => {
       const musicPref = localStorage.getItem("musicOn");
       music.currentTime = savedTime;
-
       if (musicPref === "true") {
         music.play().then(() => {
           musicBtn.textContent = "🔇 Music Off";
-        }).catch(err => {
+        }).catch(() => {
           document.body.addEventListener("click", () => {
             if (localStorage.getItem("musicOn") === "true") {
               music.play();
@@ -200,39 +218,9 @@
     });
   </script>
 
-  <style>
-    .avatar-banner {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 8px 16px;
-      border-radius: 30px;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
-      z-index: 9999;
-      font-family: 'Segoe UI', sans-serif;
-    }
-  
-    .avatar-banner img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #ccc;
-    }
-  
-    .avatar-banner span {
-      font-weight: 600;
-      color: #333;
-    }
-  </style>
-  
-
 </body>
 </html>
+
 
 
 
