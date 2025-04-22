@@ -124,23 +124,28 @@
     <p>You got <strong>{{ score }}</strong> point{{ 's' if score > 1 else '' }} from <strong>Tung Tung Tung Sahur</strong>!</p>
   </div>
 
-  <!-- ✅ Leaderboard Card (hidden at first) -->
+  <!-- ✅ Leaderboard Card -->
   <div class="card" id="leaderboard-card" style="display: none;">
     <h1>🏆 Leaderboard</h1>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item">Jeremy — 9 points</li>
-      <li class="list-group-item">Yi Zhong — 7 points</li>
-      <li class="list-group-item">{{ session['user'] }} — {{ score }} point{{ 's' if score > 1 else '' }}</li>
-    </ul>
-    <p class="mt-3">Redirecting to home...</p>
+    <div class="list-group text-start">
+      <div class="list-group-item d-flex justify-content-between">
+        <span>Alicia</span><span>9 points</span>
+      </div>
+      <div class="list-group-item d-flex justify-content-between">
+        <span>Yi Zhong</span><span>7 points</span>
+      </div>
+      <div class="list-group-item d-flex justify-content-between bg-success text-white fw-semibold">
+        <span>{{ session['user'] | title }}</span>
+        <span>{{ score }} point{{ 's' if score > 1 else '' }}</span>
+      </div>
+    </div>
+    <p class="mt-4 fw-bold">Redirecting to home...</p>
   </div>
 
-  <!-- ✅ Background Music -->
   <audio id="bg-music" loop>
     <source src="{{ url_for('static', filename='audio/jazz(1).mp3') }}" type="audio/mp3">
   </audio>
 
-  <!-- ✅ Script: Voice, leaderboard transition, redirect -->
   <script>
     window.addEventListener("DOMContentLoaded", () => {
       const score = {{ score }};
@@ -164,19 +169,16 @@
         speak();
       }
 
-      // Show leaderboard after 5s
       setTimeout(() => {
         document.getElementById("result-card").style.display = "none";
         document.getElementById("leaderboard-card").style.display = "block";
       }, 5000);
 
-      // Redirect to home after 10s
       setTimeout(() => {
         window.location.href = "{{ url_for('home') }}";
       }, 10000);
     });
 
-    // ✅ Music logic
     const music = document.getElementById("bg-music");
     const musicBtn = document.getElementById("music-btn");
     const savedTime = parseFloat(localStorage.getItem("musicTime")) || 0;
@@ -220,6 +222,7 @@
 
 </body>
 </html>
+
 
 
 

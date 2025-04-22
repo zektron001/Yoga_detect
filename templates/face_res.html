@@ -42,12 +42,31 @@
 </head>
 <body>
   <div class="greeting">
-    <!-- ✅ Fixed the path and added |lower -->
     <img class="avatar" src="{{ url_for('static', filename='avatars/' ~ user|lower ~ '.png') }}" alt="Avatar of {{ user }}">
     <h1>Welcome {{ user|capitalize }} 👋</h1>
   </div>
 
   <script>
+    const username = "{{ user|capitalize }}";
+    const welcomeText = `Welcome back, ${username}! Let's begin your yoga journey.`;
+
+    const msg = new SpeechSynthesisUtterance(welcomeText);
+    msg.rate = 1.05;
+    msg.pitch = 1.2;
+
+    function speakGreeting() {
+      const voices = speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.lang.startsWith("en-") || v.lang.startsWith("id"));
+      msg.voice = preferred || voices[0];
+      speechSynthesis.speak(msg);
+    }
+
+    if (speechSynthesis.getVoices().length === 0) {
+      speechSynthesis.onvoiceschanged = speakGreeting;
+    } else {
+      speakGreeting();
+    }
+
     setTimeout(() => {
       window.location.href = "/choice";
     }, 5000);
