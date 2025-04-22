@@ -87,7 +87,6 @@
       border-radius: 30px;
       box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
       z-index: 9999;
-      font-family: 'Segoe UI', sans-serif;
     }
 
     .avatar-banner img {
@@ -101,6 +100,49 @@
     .avatar-banner span {
       font-weight: 600;
       color: #333;
+    }
+
+    .podium {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .podium-spot {
+      width: 100px;
+      text-align: center;
+    }
+
+    .podium-spot img {
+      width: 70px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 3px solid white;
+      margin-bottom: 8px;
+    }
+
+    .step {
+      border-radius: 10px 10px 0 0;
+      font-weight: bold;
+      padding-top: 12px;
+      color: white;
+      font-size: 1.2rem;
+    }
+
+    .rank-1 { height: 100px; background-color: #333; }
+    .rank-2 { height: 75px; background-color: #666; }
+    .rank-3 { height: 50px; background-color: #888; }
+
+    .others div {
+      background-color: #2d3d50;
+      color: white;
+      margin: 8px 0;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -124,21 +166,38 @@
     <p>You got <strong>{{ score }}</strong> point{{ 's' if score > 1 else '' }} from <strong>Tung Tung Tung Sahur</strong>!</p>
   </div>
 
-  <!-- ✅ Leaderboard Card -->
+  <!-- ✅ Podium Leaderboard -->
   <div class="card" id="leaderboard-card" style="display: none;">
     <h1>🏆 Leaderboard</h1>
-    <div class="list-group text-start">
-      <div class="list-group-item d-flex justify-content-between">
-        <span>Alicia</span><span>9 points</span>
+    <div class="podium">
+      <!-- Second -->
+      <div class="podium-spot">
+        <img src="{{ url_for('static', filename='avatars/amelia.png') }}" alt="Amelia">
+        <div class="step rank-2">2</div>
+        <div>Amelia<br><small>7 pts</small></div>
       </div>
-      <div class="list-group-item d-flex justify-content-between">
-        <span>Yi Zhong</span><span>7 points</span>
+
+      <!-- First -->
+      <div class="podium-spot">
+        <img src="{{ url_for('static', filename='avatars/james.png') }}" alt="James">
+        <div class="step rank-1">1</div>
+        <div>James<br><small>9 pts</small></div>
       </div>
-      <div class="list-group-item d-flex justify-content-between bg-success text-white fw-semibold">
-        <span>{{ session['user'] | title }}</span>
-        <span>{{ score }} point{{ 's' if score > 1 else '' }}</span>
+
+      <!-- Third -->
+      <div class="podium-spot">
+        <img src="{{ url_for('static', filename='avatars/mateo.png') }}" alt="Mateo">
+        <div class="step rank-3">3</div>
+        <div>Mateo<br><small>6 pts</small></div>
       </div>
     </div>
+
+    <!-- Others -->
+    <div class="others">
+      <div>4. John — 5 pts</div>
+      <div>5. {{ session['user'] | title }} — {{ score }} pt{{ 's' if score > 1 else '' }}</div>
+    </div>
+
     <p class="mt-4 fw-bold">Redirecting to home...</p>
   </div>
 
@@ -222,7 +281,6 @@
 
 </body>
 </html>
-
 
 
 
